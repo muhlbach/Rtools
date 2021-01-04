@@ -1,0 +1,36 @@
+# pacman::p_load("ranger", "xgboost", "glmnet", "hdm", "caret")
+# Key packages for estimation
+library(ranger)
+library(xgboost)
+library(hdm)
+library(glmnet)
+library(caret)
+
+# Key packages for data handling
+library(readr)
+library(dplyr)
+library(parallel)
+library(Hmisc)
+library(bsts)
+library(lubridate)
+library(zoo)
+library(bizdays)
+library(anytime)
+library(grf)
+library(Rfast)
+library(tibble)
+
+# Key packages for plotting
+library(ggplot2)
+library(ggthemes)
+library(ggpubr)
+library(gridExtra)
+
+# library(RcppBDT)
+# library(hablar)
+library(purrr)
+library(doParallel)
+library(foreach)
+library(margins)
+library(data.table)
+library(matrixStats)
