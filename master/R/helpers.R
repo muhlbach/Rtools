@@ -500,6 +500,24 @@ firstup <- function(x) {
 }
 
 
+# Add % to elements
+to.percent <- function(x, digits = 2){
+  
+  x <- x %>%
+    # Multiply by 100
+    mutate_if(is.numeric, multiply, c = 100) %>%
+    
+    # Round off
+    mutate_if(is.numeric, round, digits = digits) %>%
+    
+    # Insert %
+    mutate_if(is.numeric, paste0, "\\%")
+  
+  return(x)
+  
+}
+
+
 
 
 
