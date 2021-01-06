@@ -60,6 +60,8 @@ MLmodels <- function(Y, X, newdata = NULL, model = "randomforests", params = NUL
   # --------------------
   # SETUP
   # --------------------
+  # Set seed
+  set.seed(1991)
   
   # Libraries
   stopifnot(require(ranger))
@@ -333,8 +335,9 @@ bias.variance.decomposition <- function(theta.hat, theta0 = 0, tol = 0.0001){
 
 
 # Bias-variance decomposition of estimates of conditional means
-mse.decomposition <- function(Y, Y.hat, tol = 0.0001){
+mse.decomposition <- function(Y, Y.hat, tol = 0.0001, by.group = NULL){
   
+  ## Compute loss for all
   # Compute prediction error: fhat(x_i) - f(x_i)
   eps <- Y - Y.hat
   
@@ -352,17 +355,61 @@ mse.decomposition <- function(Y, Y.hat, tol = 0.0001){
     stop("MSE does not equal bias^2+variance")
   }
   
-  # Construct return object
-  ret.obj <- list("bias" = bias, "variance" = variance, "mse" = mse)
+  # Store results
+  results <- list("bias" = bias, "variance" = variance, "mse" = mse)
   
-  return(ret.obj)
+  ## Compute loss by group
+  if (!is.null(by.group)) {
+    
+    # Unique groups
+    groups.unique <- unique(by.group)
+    
+    # Cumpute by group
+    for (g in groups.unique) {
+      
+      # Get indices
+      idx <- by.group == g
+      
+      # Compute prediction error: fhat(x_i) - f(x_i)
+      eps_g <- Y[idx] - Y.hat[idx]
+      
+      # Bias: E[e]
+      bias_g <- mean(eps_g, na.rm = TRUE)
+      
+      # Variance: E[(e - E[e])^2]
+      variance_g <- mean((eps_g - mean(eps_g, na.rm = TRUE))^2, na.rm = TRUE)
+      
+      # MSE: E[e^2]
+      mse_g <- mean(eps_g^2, na.rm = TRUE)
+      
+      # Sanity check: MSE = bias^2 + variance
+      if (any(mse_g - (bias_g^2 + variance_g) > tol)) {
+        stop("MSE does not equal bias^2+variance")
+      }
+      
+      # Save results
+      results_g <- list("bias" = bias_g, "variance" = variance_g, "mse" = mse_g)
+      
+      # Add names
+      names(results_g) <- paste0(names(results_g), "_g", g)
+      
+      # Append results
+      results <- c(results, results_g)
+      
+    } # FOR loop
+    
+  } # IF statement
+  
+  
+  return(results)
   
 }
 
 # Function to raise element to powers
 raise.to.power <- function(x,p){`^`(x,p)}
 
-get.zero.loss.group <- function(Y.group=NULL, Y.hat, Y=NULL, num.groups=3){
+# Function to compute the 0-1 loss
+get.zero.loss.group <- function(Y.group=NULL, Y.hat, Y=NULL, num.groups=3, by.group = NULL){
   
   # Handle missing observations
   idx.missing <- is.na(Y.hat)
@@ -375,6 +422,7 @@ get.zero.loss.group <- function(Y.group=NULL, Y.hat, Y=NULL, num.groups=3){
     stop("Please provide either 'Y.group' or 'Y'")
   }
   
+  ## Compute loss for all
   # Subset
   Y.group <- Y.group[!idx.missing]
   Y.hat <- Y.hat[!idx.missing]
@@ -385,7 +433,43 @@ get.zero.loss.group <- function(Y.group=NULL, Y.hat, Y=NULL, num.groups=3){
   # Compute 0-1 loss
   loss.01 <- mean(Y.group != Y.hat.group)
   
-  return(loss.01)
+  # Store results
+  results <- list("loss01" = loss.01)
+  
+  ## Compute loss by group
+  if (!is.null(by.group)) {
+    
+    # Unique groups
+    groups.unique <- unique(by.group)
+    
+    # Cumpute by group
+    for (g in groups.unique) {
+      
+      # Get indices
+      idx <- by.group == g
+      
+      # Update indices
+      idx <- idx[!idx.missing]
+      
+      # Compute 0-1 loss
+      loss.01_g <- mean(Y.group[idx] != Y.hat.group[idx])
+      
+      # Save results
+      results_g <- list("loss01" = loss.01_g)
+      
+      # Add names
+      names(results_g) <- paste0(names(results_g), "_g", g)
+      
+      # Append results
+      results <- c(results, results_g)
+      
+    } # FOR loop
+    
+  } # IF statement
+  
+  
+  return(results)
+  
 }
 
 
