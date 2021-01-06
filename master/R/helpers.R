@@ -15,6 +15,8 @@ get.nth.element <- function(list.of.lists, nth.element){
   sapply(list.of.lists, `[`, nth.element)
 }
 
+multiply <- function(x, c){x * c}
+
 ###############################################################################
 #################### ML FUNCTIONS
 ###############################################################################
@@ -491,6 +493,11 @@ evaluate_performance <- function(observed, predicted){
 }
 
 
+# Capitalize first letter and leave the rest
+firstup <- function(x) {
+  substr(x, 1, 1) <- toupper(substr(x, 1, 1))
+  return(x)
+}
 
 
 
