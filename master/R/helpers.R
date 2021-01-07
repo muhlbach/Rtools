@@ -36,7 +36,7 @@ get.iid.se <- function(X, eps){
   
   # Extract se
   se_idd <- sqrt(diag(var_iid))
-
+  
   return(se_idd)
 }
 
@@ -57,7 +57,7 @@ get.beta <- function(Y, X, constant = FALSE){
 
 
 
-MLmodels <- function(Y, X, newdata = NULL, model = "randomforests", params = NULL, return.model = FALSE){
+MLmodels <- function(Y, X, newdata = NULL, model = "randomforests", params = NULL, return.model = FALSE, cv = FALSE){
   
   # --------------------
   # SETUP
@@ -69,19 +69,32 @@ MLmodels <- function(Y, X, newdata = NULL, model = "randomforests", params = NUL
   stopifnot(require(ranger))
   stopifnot(require(xgboost))
   stopifnot(require(glmnet))
-
-  # Preferred/critical parameters
+  stopifnot(require(caret))
+  stopifnot(require(hdm))
+  
+  # Recast as matrices
+  Y <- as.matrix(Y)
+  X <- as.matrix(X)
+  
+  # Number of parameters
+  p <- ncol(X)
+  N <- nrow(X)
+  
+  # Preferred/critical parameters across all models
   params_preferred <- list(
     
     # ranger
     num.trees = 200,
     oob.error = FALSE,
-  
+    
     # boosting
     "nrounds" = 200,
     "verbose" = FALSE
   )
   
+  # --------------------
+  # SANITY CHECKS
+  # --------------------
   # Make sure critical parameters are specified (when default is not available)
   if (is.null(params)) {
     # Overwrite completely
@@ -90,10 +103,6 @@ MLmodels <- function(Y, X, newdata = NULL, model = "randomforests", params = NUL
     # Append missing parameters
     params <- c(params, params_preferred[!(params_preferred %in% params)])
   }
-  
-  # Recast as matrices
-  Y <- as.matrix(Y)
-  X <- as.matrix(X)
   
   if (!is.null(newdata)) {
     # Recast as matrix
@@ -114,8 +123,44 @@ MLmodels <- function(Y, X, newdata = NULL, model = "randomforests", params = NUL
     stop("Y and X have different lengths")
   }
   
+  
+  
+  # --------------------
+  # CROSS-VALIDATION
+  # --------------------
+  if (cv) {
+    
+    # Specify parameters used to control training in CV
+    params_train_control <- trainControl(method = "repeatedcv",
+                                         number = 5,
+                                         repeats = 1,
+                                         search = "grid",
+                                         verboseIter = FALSE,
+                                         allowParallel = TRUE,
+                                         returnData = FALSE)
+    
+    # Specify default parameters used in cv
+    params_default_cv <- list("y" = as.numeric(Y),
+                              "metric" = "RMSE",
+                              "trControl" = params_train_control,
+                              "preProcess" = NULL)
+    
+  }
+  
+  
+  
+  
+  
+  # --------------------
+  # MODEL SETTINGS
+  # --------------------
   # Specific settings that depend on the model
+  
+  
   if (model == "randomforests") {
+    # ----------
+    # RANDOM FORESTS
+    # ----------
     
     # Determine the function call (assuming the package is loaded)
     fnc_call <- "ranger"
@@ -130,7 +175,31 @@ MLmodels <- function(Y, X, newdata = NULL, model = "randomforests", params = NUL
     # Define call used to make predictions
     predict_call <- "predict(object = f, data.frame('X' = newdata))$predictions"
     
+    
+    ## CV
+    # Specific CV parameters
+    par_mtry <- floor(seq(from = 0.1, to = 0.9, length.out = 5) * p)
+    par_mtry <- par_mtry[par_mtry > 1 & par_mtry <= 20]
+    
+    # Specify CV parameters
+    params_cv <- expand.grid(mtry = par_mtry,                                   # default: sqrt(p)
+                             splitrule  ="variance",                            # default: "variance", 
+                             min.node.size = seq(from = 5, to = 25, length.out = 3)) # default: 5
+    
+    # Extra model-specific parameters
+    params_extra_cv <- list("x" = data.frame("X" = X),
+                            num.trees = NA, oob.error = NA, num.threads = 1)
+    
+    # Determine the function call used to CV (assuming the package is loaded)
+    fnc_call_cv <- "ranger"
+    
+    # Define call used to make predictions
+    predict_call_cv <- "predict(object = f, data.frame('X' = newdata))"
+    
   } else if (model == "boosting") {
+    # ----------
+    # BOOSTING / BOOSTED TREES
+    # ----------
     
     # Determine the function call (assuming the package is loaded)
     fnc_call <- "xgboost"
@@ -145,7 +214,38 @@ MLmodels <- function(Y, X, newdata = NULL, model = "randomforests", params = NUL
     # Define call used to make predictions
     predict_call <- "predict(object = f, newdata)"
     
+    ## CV
+    # Specific CV parameters
+    
+    # Specify CV parameters
+    params_cv <- expand.grid(nrounds = c(200),         # no default
+                             max_depth = c(3, 6, 9),           # default: 6
+                             eta = c(0.001, 0.1, 0.3),                  # default: 0.3
+                             gamma = c(0),                  # default: 0
+                             colsample_bytree = c(2/3),     # default: 1
+                             min_child_weight= c(1),        # default: 1
+                             subsample = c(1))              # default: 1
+    
+    # Extra model-specific parameters
+    params_extra_cv <- list("x" = xgb.DMatrix(as.matrix(X)),
+                            "objective" = "reg:squarederror",
+                            nthread = 1)
+    
+    # Give colnames (caret needs x to have colnames!)
+    colnames(params_extra_cv$x) <- paste0("X",1:p)
+    
+    
+    # Determine the function call used to CV (assuming the package is loaded)
+    fnc_call_cv <- "xgbTree"
+    
+    # Define call used to make predictions
+    predict_call_cv <- "predict(object = f, xgb.DMatrix(newdata))"
+    
+    
   } else if (model == "lasso") {
+    # ----------
+    # LASSO
+    # ----------
     
     # Determine the function call (assuming the package is loaded)
     fnc_call <- "glmnet"
@@ -160,7 +260,46 @@ MLmodels <- function(Y, X, newdata = NULL, model = "randomforests", params = NUL
     # Define call used to make predictions
     predict_call <- "rowMeans(predict(object = f, newdata))"
     
+    ## CV
+    # Specific CV parameters
+    alpha_par <- c(0.5, 1)
+    
+    # Initialize
+    params_cv <- data.frame()
+    
+    for (a in alpha_par) {
+    
+      ## Compute sequence
+      # lambda_max <- max(abs(colSums(sweep(x = X, MARGIN = 1, STATS = Y, FUN = "*")))) / (N*a)
+      # lambda_min <- 0.001*lambda_max
+      # lambda_seq <- exp(seq(log(lambda_max), log(lambda_min), length.out = 50))
+      lambda_seq <- glmnet(X, Y, alpha = a, nlambda = 50)$lambda
+      
+      # Construct grid
+      params_cv_temp <- data.frame("alpha" = a, "lambda" = lambda_seq)
+        
+      # Add to grid
+      params_cv <- rbind(params_cv, params_cv_temp)
+    }
+    
+    # Extra model-specific parameters
+    params_extra_cv <- list("x" = X,
+                            "family" = "gaussian")
+    
+    # Give colnames (caret needs x to have colnames!)
+    colnames(params_extra_cv$x) <- paste0("X",1:p)
+    
+    # Determine the function call used to CV (assuming the package is loaded)
+    fnc_call_cv <- "glmnet"
+    
+    # Define call used to make predictions
+    predict_call_cv <- "predict(object = f, data.frame(newdata))"
+    
+    
   } else if (model == "ols") {
+    
+    # No need to cross-valie OLS as it has an analytical solution, hence set cv = FALSE
+    cv <- FALSE
     
     # Determine the function call (assuming the package is loaded)
     fnc_call <- "lm"
@@ -182,40 +321,68 @@ MLmodels <- function(Y, X, newdata = NULL, model = "randomforests", params = NUL
   }
   
   
+  
+  
+  
+  
   # --------------------
   # ESTIMATE MODEL
   # --------------------
-  
-  # Get default parameters as list
-  params_default <- as.list(rlang::fn_fmls(fn = get(fnc_call)))  
-  
-  # Remove types of "language"
-  params_default[lapply(X = params_default, FUN = typeof) %in% c("language")] <- NULL  
-  
-  ## Update params
-  # Get string of arguments to be updated
-  args_update <- intersect(names(params_default), names(params))
-
-  # Merge parameters
-  params_default <- modifyList(x = params_default, val = params[args_update])
-  
-  # Remove types of "symbol"
-  params_default[lapply(X = params_default, FUN = typeof) %in% c("symbol")] <- NULL  
-  
-  # Specific parameters
-  params_specific <- modifyList(x = params_data, val = params_required)
-  
-  # Merge parameters
-  params_final <- modifyList(x = params_default, val = params_specific) 
-  
-  # Estimate model, f
-  # f <- Gmisc::fastDoCall(what = get(fnc_call), args = params_final)
-  f <- DescTools::DoCall(what = get(fnc_call), args = params_final)
-  
-  # Predict
-  yhat <- NULL
-  if (!is.null(newdata)) {
-    yhat <- as.numeric(eval(parse(text = predict_call)))
+  if (cv) {
+    
+    # Update parameters
+    params_extra_cv <- modifyList(x = params_extra_cv, val = params[intersect(names(params_extra_cv), names(params))])
+    
+    # Add some default CV parameters after having speficied the model parameters
+    params_model_cv <- c(list("method" = fnc_call_cv,
+                              "tuneGrid" = params_cv),
+                         params_extra_cv)
+    
+    # Merge
+    params_final <- modifyList(x = params_default_cv, val = params_model_cv)
+    
+    # Estimate model, f (suppress warning because XGB and GLMNET give warnings)
+    suppressWarnings(f <- DescTools::DoCall(what = caret::train, args = params_final))
+    
+    # Predict
+    yhat <- NULL
+    if (!is.null(newdata)) {
+      yhat <- as.numeric(eval(parse(text = predict_call_cv)))
+    }
+    
+  } else {
+    
+    # Get default parameters as list
+    params_default <- as.list(rlang::fn_fmls(fn = get(fnc_call)))  
+    
+    # Remove types of "language"
+    params_default[lapply(X = params_default, FUN = typeof) %in% c("language")] <- NULL  
+    
+    ## Update params
+    # Get string of arguments to be updated
+    args_update <- intersect(names(params_default), names(params))
+    
+    # Merge parameters
+    params_default <- modifyList(x = params_default, val = params[args_update])
+    
+    # Remove types of "symbol"
+    params_default[lapply(X = params_default, FUN = typeof) %in% c("symbol")] <- NULL  
+    
+    # Specific parameters
+    params_specific <- modifyList(x = params_data, val = params_required)
+    
+    # Merge parameters
+    params_final <- modifyList(x = params_default, val = params_specific) 
+    
+    # Estimate model, f
+    # f <- Gmisc::fastDoCall(what = get(fnc_call), args = params_final)
+    f <- DescTools::DoCall(what = get(fnc_call), args = params_final)
+    
+    # Predict
+    yhat <- NULL
+    if (!is.null(newdata)) {
+      yhat <- as.numeric(eval(parse(text = predict_call)))
+    }
   }
   
   # --------------------
