@@ -57,7 +57,7 @@ get.beta <- function(Y, X, constant = FALSE){
 
 
 
-MLmodels <- function(Y, X, newdata = NULL, model = "randomforests", params = NULL, return.model = FALSE, cv = FALSE, parallel = FALSE){
+MLmodels <- function(Y, X, newdata = NULL, model = "randomforests", params = NULL, return.model = FALSE, cv = FALSE, parallel = TRUE){
   
   # --------------------
   # SETUP
