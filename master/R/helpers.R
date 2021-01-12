@@ -345,24 +345,26 @@ MLmodels <- function(Y, X, newdata = NULL, model = "randomforests", params = NUL
     # Set seed
     set.seed(1991)
     
-    if(parallel){
+    if (parallel){
       # Start cluster
-      cl <- makeForkCluster(nnodes = detectCores())
-      registerDoParallel(cl)  
+      clust <- makeCluster(spec = detectCores(), type = "PSOCK")
+      # showConnections()
+      
     }
     
     # Estimate model, f (suppress warning because XGB and GLMNET give warnings)
     suppressWarnings(f <- DescTools::DoCall(what = caret::train, args = params_final))
     
-    if(parallel){
+    if (parallel){
       # Stop cluster
-      stopCluster(cl)
+      stopCluster(cl = clust)
     }
     
     # Predict
     yhat <- NULL
     if (!is.null(newdata)) {
       yhat <- as.numeric(eval(parse(text = predict_call_cv)))
+      # showConnections()
     }
     
   } else {
