@@ -57,7 +57,8 @@ get.beta <- function(Y, X, constant = FALSE){
 
 
 
-MLmodels <- function(Y, X, newdata = NULL, model = "randomforests", params = NULL, return.model = FALSE, cv = FALSE, parallel = TRUE){
+MLmodels <- function(Y, X, newdata = NULL, model = "randomforests", params = NULL, return.model = FALSE,
+                     cv = FALSE, parallel = TRUE, ncorespct = 0.8){
   
   # --------------------
   # SETUP
@@ -71,7 +72,7 @@ MLmodels <- function(Y, X, newdata = NULL, model = "randomforests", params = NUL
   stopifnot(require(glmnet))
   stopifnot(require(caret))
   stopifnot(require(hdm))
-  stopifnot(require(parallel))
+  stopifnot(require(doParallel))
   
   # Recast as matrices
   Y <- as.matrix(Y)
@@ -130,6 +131,9 @@ MLmodels <- function(Y, X, newdata = NULL, model = "randomforests", params = NUL
   # CROSS-VALIDATION
   # --------------------
   if (cv) {
+    
+    # Obtain number of cores
+    ncores <- floor((detectCores()-1)*ncorespct)
     
     # Specify parameters used to control training in CV
     params_train_control <- trainControl(method = "repeatedcv",
@@ -347,7 +351,8 @@ MLmodels <- function(Y, X, newdata = NULL, model = "randomforests", params = NUL
     
     if (parallel){
       # Start cluster
-      clust <- makeCluster(spec = detectCores(), type = "PSOCK")
+      clust <- parallel::makeCluster(spec = ncores, type = "FORK")
+      doParallel::registerDoParallel(cl = clust)
       # showConnections()
       
     }
@@ -357,7 +362,9 @@ MLmodels <- function(Y, X, newdata = NULL, model = "randomforests", params = NUL
     
     if (parallel){
       # Stop cluster
-      stopCluster(cl = clust)
+      stopCluster(clust)
+      registerDoSEQ()
+      rm(clust)
     }
     
     # Predict
