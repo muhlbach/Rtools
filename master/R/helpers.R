@@ -57,7 +57,7 @@ get.beta <- function(Y, X, constant = FALSE){
 
 
 
-MLmodels <- function(Y, X, newdata = NULL, model = "randomforests", params = NULL, return.model = FALSE, cv = FALSE){
+MLmodels <- function(Y, X, newdata = NULL, model = "randomforests", params = NULL, return.model = FALSE, cv = FALSE, parallel = FALSE){
   
   # --------------------
   # SETUP
@@ -71,6 +71,7 @@ MLmodels <- function(Y, X, newdata = NULL, model = "randomforests", params = NUL
   stopifnot(require(glmnet))
   stopifnot(require(caret))
   stopifnot(require(hdm))
+  stopifnot(require(parallel))
   
   # Recast as matrices
   Y <- as.matrix(Y)
@@ -341,8 +342,22 @@ MLmodels <- function(Y, X, newdata = NULL, model = "randomforests", params = NUL
     # Merge
     params_final <- modifyList(x = params_default_cv, val = params_model_cv)
     
+    # Set seed
+    set.seed(1991)
+    
+    if(parallel){
+      # Start cluster
+      cl <- makeForkCluster(nnodes = detectCores())
+      registerDoParallel(cl)  
+    }
+    
     # Estimate model, f (suppress warning because XGB and GLMNET give warnings)
     suppressWarnings(f <- DescTools::DoCall(what = caret::train, args = params_final))
+    
+    if(parallel){
+      # Stop cluster
+      stopCluster(cl)
+    }
     
     # Predict
     yhat <- NULL
