@@ -132,8 +132,8 @@ MLmodels <- function(Y, X, newdata = NULL, model = "randomforests", params = NUL
   # --------------------
   if (cv) {
     
-    # Obtain number of cores
-    ncores <- floor((detectCores()-1)*ncorespct)
+    # Obtain number of cores (min = 1, max = cores-1)
+    ncores <- min(max(1,floor((detectCores()-1)*ncorespct)),detectCores()-1)
     
     # Specify parameters used to control training in CV
     params_train_control <- trainControl(method = "repeatedcv",
@@ -146,6 +146,7 @@ MLmodels <- function(Y, X, newdata = NULL, model = "randomforests", params = NUL
     
     # Specify default parameters used in cv
     params_default_cv <- list("y" = as.numeric(Y),
+                              "x" = X,
                               "metric" = "RMSE",
                               "trControl" = params_train_control,
                               "preProcess" = NULL)
@@ -154,151 +155,158 @@ MLmodels <- function(Y, X, newdata = NULL, model = "randomforests", params = NUL
   
   
   
-  
-  
   # --------------------
   # MODEL SETTINGS
   # --------------------
   # Specific settings that depend on the model
   
-  
   if (model == "randomforests") {
     # ----------
     # RANDOM FORESTS
     # ----------
+    if (cv) {
+      
+      ## CV
+      # Specific CV parameters
+      par_mtry <- floor(seq(from = 0.1, to = 0.9, length.out = 5) * p)
+      par_mtry <- par_mtry[par_mtry > 1 & par_mtry <= 20]
+      
+      # Specify CV parameters
+      params_cv <- expand.grid(mtry = par_mtry,                                   # default: sqrt(p)
+                               splitrule  ="variance",                            # default: "variance", 
+                               min.node.size = seq(from = 5, to = 25, length.out = 3)) # default: 5
+      
+      # Extra model-specific parameters
+      params_extra_cv <- list(num.threads = 1, # fix num.threads=1 to avoid multithreadding
+                              num.trees = NA, oob.error = NA)
+      
+      # Determine the function call used to CV (assuming the package is loaded)
+      fnc_call_cv <- "ranger"
+      
+      # Define call used to make predictions
+      predict_call_cv <- "predict(object = f, newdata)"
+      
+    } else {
+      
+      # Determine the function call (assuming the package is loaded)
+      fnc_call <- "ranger"
+      
+      # Specify data parameters
+      params_data <- list("formula" = "Y ~ .",
+                          "data" = data.frame("Y" = Y, "X" = X))
+      
+      # Required parameters
+      params_required <- list()
+      
+      # Define call used to make predictions
+      predict_call <- "predict(object = f, data.frame('X' = newdata))$predictions"
+      
+    }
     
-    # Determine the function call (assuming the package is loaded)
-    fnc_call <- "ranger"
-    
-    # Specify data parameters
-    params_data <- list("formula" = "Y ~ .",
-                        "data" = data.frame("Y" = Y, "X" = X))
-    
-    # Required parameters
-    params_required <- list()
-    
-    # Define call used to make predictions
-    predict_call <- "predict(object = f, data.frame('X' = newdata))$predictions"
-    
-    
-    ## CV
-    # Specific CV parameters
-    par_mtry <- floor(seq(from = 0.1, to = 0.9, length.out = 5) * p)
-    par_mtry <- par_mtry[par_mtry > 1 & par_mtry <= 20]
-    
-    # Specify CV parameters
-    params_cv <- expand.grid(mtry = par_mtry,                                   # default: sqrt(p)
-                             splitrule  ="variance",                            # default: "variance", 
-                             min.node.size = seq(from = 5, to = 25, length.out = 3)) # default: 5
-    
-    # Extra model-specific parameters
-    params_extra_cv <- list("x" = data.frame("X" = X),
-                            num.trees = NA, oob.error = NA, num.threads = 1)
-    
-    # Determine the function call used to CV (assuming the package is loaded)
-    fnc_call_cv <- "ranger"
-    
-    # Define call used to make predictions
-    predict_call_cv <- "predict(object = f, data.frame('X' = newdata))"
     
   } else if (model == "boosting") {
     # ----------
     # BOOSTING / BOOSTED TREES
     # ----------
-    
-    # Determine the function call (assuming the package is loaded)
-    fnc_call <- "xgboost"
-    
-    # Specify data parameters
-    params_data <- list("data" = xgb.DMatrix(data = X, label = Y))
-    
-    # Required parameters
-    params_required <- list(booster = "gbtree",
-                            objective = "reg:squarederror")
-    
-    # Define call used to make predictions
-    predict_call <- "predict(object = f, newdata)"
-    
-    ## CV
-    # Specific CV parameters
-    
-    # Specify CV parameters
-    params_cv <- expand.grid(nrounds = c(200),         # no default
-                             max_depth = c(3, 6, 9),           # default: 6
-                             eta = c(0.001, 0.1, 0.3),                  # default: 0.3
-                             gamma = c(0),                  # default: 0
-                             colsample_bytree = c(2/3),     # default: 1
-                             min_child_weight= c(1),        # default: 1
-                             subsample = c(1))              # default: 1
-    
-    # Extra model-specific parameters
-    params_extra_cv <- list("x" = xgb.DMatrix(as.matrix(X)),
-                            "objective" = "reg:squarederror",
-                            nthread = 1)
-    
-    # Give colnames (caret needs x to have colnames!)
-    colnames(params_extra_cv$x) <- paste0("X",1:p)
-    
-    
-    # Determine the function call used to CV (assuming the package is loaded)
-    fnc_call_cv <- "xgbTree"
-    
-    # Define call used to make predictions
-    predict_call_cv <- "predict(object = f, xgb.DMatrix(newdata))"
+    if (cv) {
+      ## CV
+      # Specific CV parameters
+      
+      # Specify CV parameters
+      params_cv <- expand.grid(nrounds = c(200),         # no default
+                               max_depth = c(3, 6, 9),           # default: 6
+                               eta = c(0.001, 0.1, 0.3),                  # default: 0.3
+                               gamma = c(0),                  # default: 0
+                               colsample_bytree = c(2/3),     # default: 1
+                               min_child_weight= c(1),        # default: 1
+                               subsample = c(1))              # default: 1
+      
+      # Extra model-specific parameters
+      params_extra_cv <- list("x" = X,
+                              "objective" = "reg:squarederror",
+                              nthread = 1)
+      
+      # Give colnames (caret needs x to have colnames!)
+      colnames(params_extra_cv$x) <- paste0("X",1:p)
+      
+      
+      # Determine the function call used to CV (assuming the package is loaded)
+      fnc_call_cv <- "xgbTree"
+      
+      # Define call used to make predictions
+      predict_call_cv <- "predict(object = f, newdata)"
+      
+    } else {
+      # Determine the function call (assuming the package is loaded)
+      fnc_call <- "xgboost"
+      
+      # Specify data parameters
+      params_data <- list("data" = xgb.DMatrix(data = X, label = Y))
+      
+      # Required parameters
+      params_required <- list(booster = "gbtree",
+                              objective = "reg:squarederror")
+      
+      # Define call used to make predictions
+      predict_call <- "predict(object = f, newdata)"
+    }
     
     
   } else if (model == "lasso") {
     # ----------
     # LASSO
     # ----------
-    
-    # Determine the function call (assuming the package is loaded)
-    fnc_call <- "glmnet"
-    
-    # Specify data parameters
-    params_data <- list("x" = X,
-                        "y" = Y)
-    
-    # Required parameters 
-    params_required <- list("family"="gaussian")
-    
-    # Define call used to make predictions
-    predict_call <- "rowMeans(predict(object = f, newdata))"
-    
-    ## CV
-    # Specific CV parameters
-    alpha_par <- c(0.5, 1)
-    
-    # Initialize
-    params_cv <- data.frame()
-    
-    for (a in alpha_par) {
-    
-      ## Compute sequence
-      # lambda_max <- max(abs(colSums(sweep(x = X, MARGIN = 1, STATS = Y, FUN = "*")))) / (N*a)
-      # lambda_min <- 0.001*lambda_max
-      # lambda_seq <- exp(seq(log(lambda_max), log(lambda_min), length.out = 50))
-      lambda_seq <- glmnet(X, Y, alpha = a, nlambda = 50)$lambda
+    if (cv) {
       
-      # Construct grid
-      params_cv_temp <- data.frame("alpha" = a, "lambda" = lambda_seq)
+      ## CV
+      # Specific CV parameters
+      alpha_par <- c(0.5, 1)
+      
+      # Initialize
+      params_cv <- data.frame()
+      
+      for (a in alpha_par) {
         
-      # Add to grid
-      params_cv <- rbind(params_cv, params_cv_temp)
+        ## Compute sequence
+        # lambda_max <- max(abs(colSums(sweep(x = X, MARGIN = 1, STATS = Y, FUN = "*")))) / (N*a)
+        # lambda_min <- 0.001*lambda_max
+        # lambda_seq <- exp(seq(log(lambda_max), log(lambda_min), length.out = 50))
+        lambda_seq <- glmnet(X, Y, alpha = a, nlambda = 50)$lambda
+        
+        # Construct grid
+        params_cv_temp <- data.frame("alpha" = a, "lambda" = lambda_seq)
+        
+        # Add to grid
+        params_cv <- rbind(params_cv, params_cv_temp)
+      }
+      
+      # Extra model-specific parameters
+      params_extra_cv <- list("family" = "gaussian")
+      
+      # Give colnames (caret needs x to have colnames!)
+      # colnames(params_extra_cv$x) <- paste0("X",1:p)
+      
+      # Determine the function call used to CV (assuming the package is loaded)
+      fnc_call_cv <- "glmnet"
+      
+      # Define call used to make predictions
+      predict_call_cv <- "predict(object = f, newdata)"
+      
+    } else {
+      # Determine the function call (assuming the package is loaded)
+      fnc_call <- "glmnet"
+      
+      # Specify data parameters
+      params_data <- list("x" = X,
+                          "y" = Y)
+      
+      # Required parameters 
+      params_required <- list("family"="gaussian")
+      
+      # Define call used to make predictions
+      predict_call <- "rowMeans(predict(object = f, newdata))"
     }
     
-    # Extra model-specific parameters
-    params_extra_cv <- list("x" = X,
-                            "family" = "gaussian")
-    
-    # Give colnames (caret needs x to have colnames!)
-    colnames(params_extra_cv$x) <- paste0("X",1:p)
-    
-    # Determine the function call used to CV (assuming the package is loaded)
-    fnc_call_cv <- "glmnet"
-    
-    # Define call used to make predictions
-    predict_call_cv <- "predict(object = f, data.frame(newdata))"
     
     
   } else if (model == "ols") {
@@ -335,8 +343,9 @@ MLmodels <- function(Y, X, newdata = NULL, model = "randomforests", params = NUL
   # --------------------
   if (cv) {
     
-    # Update parameters
-    params_extra_cv <- modifyList(x = params_extra_cv, val = params[intersect(names(params_extra_cv), names(params))])
+    # Update parameters (only those who are set to "NA" above)
+    params_extra_cv <- modifyList(x = params_extra_cv,
+                                  val = params[intersect(names(params_extra_cv)[is.na(params_extra_cv)], names(params))])
     
     # Add some default CV parameters after having speficied the model parameters
     params_model_cv <- c(list("method" = fnc_call_cv,
@@ -354,7 +363,6 @@ MLmodels <- function(Y, X, newdata = NULL, model = "randomforests", params = NUL
       clust <- parallel::makeCluster(spec = ncores, type = "FORK")
       doParallel::registerDoParallel(cl = clust)
       # showConnections()
-      
     }
     
     # Estimate model, f (suppress warning because XGB and GLMNET give warnings)
