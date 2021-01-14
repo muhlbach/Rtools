@@ -259,8 +259,8 @@ MLmodels <- function(Y, X, newdata = NULL, model = "randomforests", params = NUL
     if (cv) {
       
       ## CV
-      # Specific CV parameters
-      alpha_par <- c(0.5, 1)
+      # Specific CV parameters (only lasso)
+      alpha_par <- c(1)
       
       # Initialize
       params_cv <- data.frame()
