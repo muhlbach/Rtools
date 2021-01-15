@@ -767,6 +767,9 @@ to.percent <- function(x, digits = 2){
     # Round off
     mutate_if(is.numeric, round, digits = digits) %>%
     
+    # Format
+    mutate_if(is.numeric, format, nsmall = digits) %>%
+    
     # Insert %
     mutate_if(is.numeric, paste0, "\\%")
   
