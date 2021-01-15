@@ -674,6 +674,64 @@ get.zero.loss.group <- function(Y.group=NULL, Y.hat, Y=NULL, num.groups=3, by.gr
 }
 
 
+# Compute degree of overfitting
+overfitting.degree <- function(Y.observed, Y.true, Y.hat, by.group = NULL){
+  
+  ## Compute loss for all
+  # Compute absolute loss (true and noise)
+  eps.true <- abs(Y.true - Y.hat)
+  eps.observed <- abs(Y.observed - Y.hat)
+  
+  # Indicate overfitting
+  overfiting.to.observed <- mean(eps.observed <= eps.true, na.rm = TRUE)
+  
+  # Store results
+  results <- list("overfitting" = overfiting.to.observed)
+  
+  ## Compute loss by group
+  if (!is.null(by.group)) {
+    
+    # Unique groups
+    groups.unique <- unique(by.group)
+    
+    # Cumpute by group
+    for (g in groups.unique) {
+      
+      # Get indices
+      idx <- by.group == g
+      
+      # Compute absolute loss (true and noise)
+      eps.true_g <- abs(Y.true[idx] - Y.hat[idx])
+      eps.observed_g <- abs(Y.observed[idx] - Y.hat[idx])
+      
+      # Indicate overfitting
+      overfiting.to.observed_g <- mean(eps.observed_g <= eps.true_g, na.rm = TRUE)
+      
+      # Store results
+      results_g <- list("overfitting" = overfiting.to.observed_g)
+      
+      # Add names
+      names(results_g) <- paste0(names(results_g), "_g", g)
+      
+      # Append results
+      results <- c(results, results_g)
+      
+    } # FOR loop
+    
+  } # IF statement
+  
+  
+  return(results)
+  
+}
+
+
+
+
+
+
+
+
 # Evaluate performance
 evaluate_performance <- function(observed, predicted){
   
