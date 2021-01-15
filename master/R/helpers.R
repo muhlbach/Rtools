@@ -769,10 +769,10 @@ round.to.exact.digit <- function(x, digits){
 # Add % to elements
 to.percent <- function(x, digits = 2){
   
-  # Test if matrix
-  isMatrix <- is.matrix(x)
+  # Test if matrix or data.frame
+  isMulti <- is.matrix(x) | is.data.frame(x)
   
-  if (isMatrix) {
+  if (isMulti) {
     
     # Find index
     idx_num <- apply(X = as.matrix(x), MARGIN = 2, FUN = is.numeric)
