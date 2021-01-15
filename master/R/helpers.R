@@ -756,26 +756,37 @@ firstup <- function(x) {
   return(x)
 }
 
-
-# Add % to elements
-to.percent <- function(x, digits = 2){
+# Round and format to exact digits
+round.to.exact.digit <- function(x, digits){
   
-  x <- x %>%
-    # Multiply by 100
-    mutate_if(is.numeric, multiply, c = 100) %>%
-    
-    # Round off
-    mutate_if(is.numeric, round, digits = digits) %>%
-    
-    # Format
-    mutate_if(is.numeric, format, nsmall = digits) %>%
-    
-    # Insert %
-    mutate_if(is.numeric, paste0, "\\%")
+  x <- format(round(x, digits = digits), nsmall = digits)
   
   return(x)
   
 }
+
+
+# Add % to elements
+to.percent <- function(x, digits = 2){
+  
+  # Find index
+  idx_num <- apply(X = x, MARGIN = 2, FUN = is.numeric)
+  
+  ## Change all indices
+  # Multiply by 100
+  x[,idx_num] <- multiply(x = x[,idx_num], c = 100)
+  
+  # Round
+  x[,idx_num] <- round.to.exact.digit(x = x[,idx_num], digits = digits)
+  # format(x = round(x[,idx_num], digits = digits), nsmall = digits)
+  
+  # Paste %
+  x[,idx_num] <- apply(X = x[,idx_num], MARGIN = 2, FUN = paste0, "\\%")
+
+  return(x)
+  
+}
+
 
 
 
