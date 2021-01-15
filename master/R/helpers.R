@@ -769,20 +769,41 @@ round.to.exact.digit <- function(x, digits){
 # Add % to elements
 to.percent <- function(x, digits = 2){
   
-  # Find index
-  idx_num <- apply(X = x, MARGIN = 2, FUN = is.numeric)
+  # Test if matrix
+  isMatrix <- is.matrix(x)
   
-  ## Change all indices
-  # Multiply by 100
-  x[,idx_num] <- multiply(x = x[,idx_num], c = 100)
+  if (isMatrix) {
+    
+    # Find index
+    idx_num <- apply(X = as.matrix(x), MARGIN = 2, FUN = is.numeric)
+    
+    ## Change all indices
+    # Multiply by 100
+    x[,idx_num] <- multiply(x = x[,idx_num], c = 100)
+    
+    # Round
+    x[,idx_num] <- round.to.exact.digit(x = x[,idx_num], digits = digits)
+    
+    # Paste %
+    x[,idx_num] <- apply(X = x[,idx_num], MARGIN = 2, FUN = paste0, "\\%")
+    
+  } else {
+    
+    if (is.numeric(x)) {
+      
+      # Multiply by 100
+      x <- multiply(x = x, c = 100)
+      
+      # Round
+      x <- round.to.exact.digit(x = x, digits = digits)
+      
+      # Paste
+      x <- paste0(x, "\\%")
+      
+    }
+    
+  }
   
-  # Round
-  x[,idx_num] <- round.to.exact.digit(x = x[,idx_num], digits = digits)
-  # format(x = round(x[,idx_num], digits = digits), nsmall = digits)
-  
-  # Paste %
-  x[,idx_num] <- apply(X = x[,idx_num], MARGIN = 2, FUN = paste0, "\\%")
-
   return(x)
   
 }
