@@ -625,14 +625,14 @@ get.zero.loss.group <- function(Y.group=NULL, Y.hat, Y=NULL, num.groups=3, by.gr
   
   ## Compute loss for all
   # Subset
-  Y.group <- Y.group[!idx.missing]
-  Y.hat <- Y.hat[!idx.missing]
+  # Y.group <- Y.group[!idx.missing]
+  # Y.hat <- Y.hat[!idx.missing]
   
   # Compute group based on predictions
   Y.hat.group <- as.numeric(Hmisc::cut2(Y.hat, g=num.groups)) 
   
   # Compute 0-1 loss
-  loss.01 <- mean(Y.group != Y.hat.group)
+  loss.01 <- mean(Y.group != Y.hat.group, na.rm = TRUE)
   
   # Store results
   results <- list("loss01" = loss.01)
@@ -650,10 +650,10 @@ get.zero.loss.group <- function(Y.group=NULL, Y.hat, Y=NULL, num.groups=3, by.gr
       idx <- by.group == g
       
       # Update indices
-      idx <- idx[!idx.missing]
+      # idx <- idx[!idx.missing]
       
       # Compute 0-1 loss
-      loss.01_g <- mean(Y.group[idx] != Y.hat.group[idx])
+      loss.01_g <- mean(Y.group[idx] != Y.hat.group[idx], na.rm = TRUE)
       
       # Save results
       results_g <- list("loss01" = loss.01_g)
