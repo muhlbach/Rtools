@@ -15,6 +15,7 @@ get.nth.element <- function(list.of.lists, nth.element){
   sapply(list.of.lists, `[`, nth.element)
 }
 
+# Multiply to numbers
 multiply <- function(x, c){x * c}
 
 ###############################################################################
