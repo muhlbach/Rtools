@@ -64,7 +64,7 @@ MLmodels <- function(Y, X, newdata = NULL, model = "randomforests", params = NUL
   # SETUP
   # --------------------
   # Set seed
-  set.seed(1991)
+  # set.seed(1991)
   
   # Libraries
   stopifnot(require(ranger))
@@ -356,7 +356,7 @@ MLmodels <- function(Y, X, newdata = NULL, model = "randomforests", params = NUL
     params_final <- modifyList(x = params_default_cv, val = params_model_cv)
     
     # Set seed
-    set.seed(1991)
+    # set.seed(1991)
     
     if (parallel){
       # Start cluster
