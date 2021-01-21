@@ -625,12 +625,13 @@ get.zero.loss.group <- function(Y.group=NULL, Y.hat, Y=NULL, num.groups=3, by.gr
   
   ## Compute loss for all
   # Subset
-  # Y.group <- Y.group[!idx.missing]
-  # Y.hat <- Y.hat[!idx.missing]
+  Y.group <- Y.group[!idx.missing]
+  Y.hat <- Y.hat[!idx.missing]
   
   # Compute group based on predictions
   Y.hat.group <- as.numeric(Hmisc::cut2(Y.hat, g=num.groups)) 
-  
+  # NB! When we have missing, the ordering will change even for W1 where we do not have missing
+    
   # Compute 0-1 loss
   loss.01 <- mean(Y.group != Y.hat.group, na.rm = TRUE)
   
@@ -650,7 +651,7 @@ get.zero.loss.group <- function(Y.group=NULL, Y.hat, Y=NULL, num.groups=3, by.gr
       idx <- by.group == g
       
       # Update indices
-      # idx <- idx[!idx.missing]
+      idx <- idx[!idx.missing]
       
       # Compute 0-1 loss
       loss.01_g <- mean(Y.group[idx] != Y.hat.group[idx], na.rm = TRUE)
@@ -683,7 +684,7 @@ overfitting.degree <- function(Y.observed, Y.true, Y.hat, by.group = NULL){
   eps.observed <- abs(Y.observed - Y.hat)
   
   # Indicate overfitting
-  overfiting.to.observed <- mean(eps.observed <= eps.true, na.rm = TRUE)
+  overfiting.to.observed <- mean(eps.observed < eps.true, na.rm = TRUE)
   
   # Store results
   results <- list("overfitting" = overfiting.to.observed)
@@ -705,7 +706,7 @@ overfitting.degree <- function(Y.observed, Y.true, Y.hat, by.group = NULL){
       eps.observed_g <- abs(Y.observed[idx] - Y.hat[idx])
       
       # Indicate overfitting
-      overfiting.to.observed_g <- mean(eps.observed_g <= eps.true_g, na.rm = TRUE)
+      overfiting.to.observed_g <- mean(eps.observed_g < eps.true_g, na.rm = TRUE)
       
       # Store results
       results_g <- list("overfitting" = overfiting.to.observed_g)
