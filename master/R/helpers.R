@@ -632,7 +632,7 @@ get.zero.loss.group <- function(Y.group=NULL, Y.hat, Y=NULL, num.groups=3, by.gr
   # Compute group based on predictions
   Y.hat.group <- as.numeric(Hmisc::cut2(Y.hat, g=num.groups)) 
   # NB! When we have missing, the ordering will change even for W1 where we do not have missing
-    
+  
   # Compute 0-1 loss
   loss.01 <- mean(Y.group != Y.hat.group, na.rm = TRUE)
   
@@ -811,11 +811,27 @@ to.percent <- function(x, digits = 2){
 }
 
 
-
-
-
-
-
+# Get extremus stats
+getExtrema <- function(x, extrema = "max", by = NULL){
+  
+  # Get numerical col idx
+  idx.num <- sapply(X = x, FUN = is.numeric)
+  
+  # Subset
+  x <- x[, idx.num]
+  
+  if (is.null(by)) {
+    stats <- do.call(what = extrema, args = x)
+  } else if(by == "col"){
+    stats <- apply(X = x, MARGIN = 2, FUN = get(extrema))
+  } else if(by == "row"){
+    stats <- apply(X = x, MARGIN = 1, FUN = get(extrema))
+  } else {
+    stop("Please specify correct `by`")
+  }
+  
+  return(stats)
+}
 
 
 
@@ -979,8 +995,73 @@ na_set <- function(vec, condition) {
 }
 
 
+# Obtain legend
+get_legend<-function(myggplot){
+  tmp <- ggplot_gtable(ggplot_build(myggplot))
+  leg <- which(sapply(tmp$grobs, function(x) x$name) == "guide-box")
+  legend <- tmp$grobs[[leg]]
+  return(legend)
+}
 
-
+get.yx.inputs <- function(x, outlier.pct = 0.025, by = NULL){
+  
+  # Get quantiles
+  qnts <- apply(X = x, MARGIN = 2, FUN = quantile, probs = c(outlier.pct, 1-outlier.pct), na.rm = TRUE)
+  
+  # Limit x-axis
+  limit.x.abs <- max(abs(qnts))
+  x.limits <- c(-limit.x.abs,limit.x.abs)
+  
+  ## Get density to set limit on y-axis
+  # Find outliers
+  idx.outlier <- abs(x) > limit.x.abs
+  
+  # Set outliers to NA
+  x[idx.outlier] <- NA
+  
+  # Get densities and maximum density (used to scale density plots)
+  densities <- purrr::transpose(apply(X = x, MARGIN = 2, FUN = density, na.rm = TRUE))
+  
+  # Get maximum density overall
+  df.max.density <- data.frame("group" = "overall",
+                               "density" = max(unlist(densities$y)))  
+  
+  
+  # By group
+  if (!is.null(by)) {
+    
+    # Split estimates by ID    
+    data.by <- split(x = x, f = by)
+    
+    # Clean; Omit columns with less than `5` observations
+    data.by.clean <- lapply(X = data.by, FUN = function(x){x[, colSums(!is.na(x)) > 5]})
+    
+    # Obtain densities by split
+    density.by <- lapply(X = data.by.clean, FUN = function(x){return(apply(X = x, MARGIN = 2, FUN = get.density))})
+    
+    # Obtain maximum densities
+    max.density.by <- lapply(X = lapply(X = density.by, FUN = colMax, as.df=TRUE), FUN = as.data.frame)
+    
+    # Bind
+    max.density.by <- data.table::rbindlist(max.density.by, fill = TRUE,  use.names=TRUE)
+    
+    # Give names
+    # colnames(max.density.by) <- sort(unique(by))
+    
+    # Add group
+    df.max.density.by <- cbind.data.frame("group" = names(density.by), max.density.by)
+    
+  } else {
+    
+    df.max.density.by <- NULL
+  }
+  
+  return(list("xlim" = x.limits,
+              "density" = df.max.density,
+              "densityby" = df.max.density.by))
+  
+  
+}
 ###############################################################################
 #################### COLORS
 ###############################################################################
@@ -997,6 +1078,10 @@ colors_palette <- c(
   "#79AF97FF", "#B24745FF", "#374E55FF", "#00FFFFFF", "#80796BFF",
   "#91D1C2FF", "#BCBD22FF", "#00FF00FF","#2CA02CFF", "#FFFF00FF")
 
+
+# palette_OkabeIto <- c("#E69F00", "#56B4E9", "#009E73", "#F0E442", 
+#                       "#0072B2", "#D55E00", "#CC79A7", "#999999")
+# scales::show_col(palette_OkabeIto)
 # Show colors
 # scales::show_col(colors_palette)
 # scales::show_col(pal_npg()(20))
