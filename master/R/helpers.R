@@ -987,7 +987,11 @@ na_set <- function(vec, condition) {
 
 # Define color palette
 colors_palette <- c(
-  # MASTER
+  # COLOR-BLIND FRIENDLY: scales::show_col(rcartocolor::carto_pal(12, "Safe"))
+  "#88CCEE", "#CC6677", "#DDCC77", "#117733", "#332288", "#AA4499",
+  "#44AA99", "#999933", "#882255", "#661100", "#6699CC", "#888888",
+  
+  # OLD MASTER
   "#3C5488FF","#E64B35FF", "#00A087FF", "#00A1D5FF", "#FFCD00FF",
   "#8491B4FF", "#E377C2FF", "#FF7F0EFF", "#9467BDFF", "#F39B7FFF",
   "#79AF97FF", "#B24745FF", "#374E55FF", "#00FFFFFF", "#80796BFF",
