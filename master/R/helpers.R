@@ -677,9 +677,11 @@ get.zero.loss.group <- function(Y.group=NULL, Y.hat, Y=NULL, num.groups=3, by.gr
 
 
 # Compute degree of overfitting
-overfitting.degree <- function(Y.observed, Y.true, Y.hat, by.group = NULL){
+fitting.degree <- function(Y.observed, Y.true, Y.hat, by.group = NULL){
   
-  ## Compute loss for all
+  ### OVERALL
+  
+  ## OVERFITTING
   # Compute absolute loss (true and noise)
   eps.true <- abs(Y.true - Y.hat)
   eps.observed <- abs(Y.observed - Y.hat)
@@ -687,30 +689,48 @@ overfitting.degree <- function(Y.observed, Y.true, Y.hat, by.group = NULL){
   # Indicate overfitting
   overfiting.to.observed <- mean(eps.observed < eps.true, na.rm = TRUE)
   
-  # Store results
-  results <- list("overfitting" = overfiting.to.observed)
+  ## UNDERFITTING
+  dist.to.mean <- abs(Y.hat - mean(Y.observed, na.rm = TRUE))
   
-  ## Compute loss by group
+  # Indicate underfitting
+  underfiting.to.signal <- mean(dist.to.mean < eps.true, na.rm = TRUE)
+  
+  # Store results
+  results <- list("overfitting" = overfiting.to.observed,
+                  "underfitting" = underfiting.to.signal)
+  
+  ### BY GROUP
   if (!is.null(by.group)) {
     
     # Unique groups
     groups.unique <- unique(by.group)
     
-    # Cumpute by group
+    # Compute by group
     for (g in groups.unique) {
       
       # Get indices
       idx <- by.group == g
       
-      # Compute absolute loss (true and noise)
-      eps.true_g <- abs(Y.true[idx] - Y.hat[idx])
-      eps.observed_g <- abs(Y.observed[idx] - Y.hat[idx])
+      # # Compute absolute loss (true and noise)
+      # eps.true_g <- abs(Y.true[idx] - Y.hat[idx])
+      # eps.observed_g <- abs(Y.observed[idx] - Y.hat[idx])
       
+      ## OVERFITTING
+
       # Indicate overfitting
-      overfiting.to.observed_g <- mean(eps.observed_g < eps.true_g, na.rm = TRUE)
+      # overfiting.to.observed_g <- mean(eps.observed_g < eps.true_g, na.rm = TRUE)
+      overfiting.to.observed_g <- mean(eps.observed[idx] < eps.true[idx], na.rm = TRUE)
       
+      ## UNDERFITTING
+      dist.to.mean_g <- abs(Y.hat[idx] - mean(Y.observed[idx], na.rm = TRUE))
+      
+      # Indicate underfitting
+      underfiting.to.signal_g <- mean(dist.to.mean_g[idx] < eps.true[idx], na.rm = TRUE)
+      
+
       # Store results
-      results_g <- list("overfitting" = overfiting.to.observed_g)
+      results_g <- list("overfitting" = overfiting.to.observed_g,
+                        "underfitting" = underfiting.to.signal_g)
       
       # Add names
       names(results_g) <- paste0(names(results_g), "_g", g)
