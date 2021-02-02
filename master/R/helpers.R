@@ -64,9 +64,7 @@ MLmodels <- function(Y, X, newdata = NULL, model = "randomforests", params = NUL
   # --------------------
   # SETUP
   # --------------------
-  # Set seed
-  # set.seed(1991)
-  
+
   # Libraries
   stopifnot(require(ranger))
   stopifnot(require(xgboost))
@@ -355,9 +353,6 @@ MLmodels <- function(Y, X, newdata = NULL, model = "randomforests", params = NUL
     
     # Merge
     params_final <- modifyList(x = params_default_cv, val = params_model_cv)
-    
-    # Set seed
-    # set.seed(1991)
     
     if (parallel){
       # Start cluster
@@ -739,6 +734,7 @@ fitting.degree <- function(Y.observed, Y.true, Y.hat, by.group = NULL){
       results <- c(results, results_g)
       
     } # FOR loop
+    
     
   } # IF statement
   
