@@ -18,6 +18,26 @@ get.nth.element <- function(list.of.lists, nth.element){
 # Multiply to numbers
 multiply <- function(x, c){x * c}
 
+
+
+fromKabletoLatex <- function(tab){
+  
+  # Remove "\begin{table}[!h]"
+  tab <- gsub("\\\\begin\\{table\\}\\[!h]", "", tab) #\\[!h]
+  
+  # Remove "\end{table}"
+  tab <- gsub("\\\\end\\{table\\}", "", tab)
+  
+  # Remove centering
+  tab <- gsub("\\\\centering", "", tab)
+  
+  return(tab)
+  
+}
+
+
+
+
 ###############################################################################
 #################### ML FUNCTIONS
 ###############################################################################
@@ -852,6 +872,12 @@ getExtrema <- function(x, extrema = "max", by = NULL){
 
 
 
+
+
+
+
+
+
 #  Obtain density
 get.density <- function(x, na.rm = TRUE){return(x = density(x, na.rm = na.rm)$y)}
 
@@ -1138,7 +1164,7 @@ width_opt <- 10
 save_format <- cairo_ps # Use "eps" (or cairo_ps for transparent figures)
 
 # Manual settings
-theme_manual_settings <- "theme(text=element_text(size=base_size_text, family = 'Times New Roman'),
+theme_manual_settings <- "theme(text=element_text(size=base_size_text, family = 'Times'),
                                legend.position = 'top',
                                legend.spacing.x = unit(0.25, 'cm'),
                                legend.text = element_text(margin = margin(r = 40, unit = 'pt')),
