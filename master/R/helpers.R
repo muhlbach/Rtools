@@ -1,5 +1,15 @@
 ###############################################################################
-#################### STANDARD FUNCTIONS
+#################### PURPOSE
+###############################################################################
+'
+The purpose of this script is standardize functions that are being used routinely
+
+Author: Nicolaj
+Date: February 26, 2021
+'
+
+###############################################################################
+#################### STANDARD UTILITY FUNCTIONS
 ###############################################################################
 # "not.in" function
 '%!in%' <- function(x,y)!('%in%'(x,y))
@@ -18,8 +28,7 @@ get.nth.element <- function(list.of.lists, nth.element){
 # Multiply to numbers
 multiply <- function(x, c){x * c}
 
-
-
+# Convert knitr_kable to LaTex table by removing table enviroment and keeping only tabuylar enviroment
 fromKabletoLatex <- function(tab){
   
   # Remove "\begin{table}[!h]"
@@ -36,11 +45,93 @@ fromKabletoLatex <- function(tab){
 }
 
 
+# Capitalize first letter and leave the rest
+firstup <- function(x) {
+  substr(x, 1, 1) <- toupper(substr(x, 1, 1))
+  return(x)
+}
+
+# Round and format to exact digits
+round.to.exact.digit <- function(x, digits){
+  
+  x <- format(round(x, digits = digits), nsmall = digits)
+  
+  return(x)
+  
+}
+
+
+# Add % to elements
+to.percent <- function(x, digits = 2){
+  
+  # Test if matrix or data.frame
+  isMulti <- is.matrix(x) | is.data.frame(x)
+  
+  if (isMulti) {
+    
+    # Find index
+    idx_num <- apply(X = as.matrix(x), MARGIN = 2, FUN = is.numeric)
+    
+    ## Change all indices
+    # Multiply by 100
+    x[,idx_num] <- multiply(x = x[,idx_num], c = 100)
+    
+    # Round
+    x[,idx_num] <- round.to.exact.digit(x = x[,idx_num], digits = digits)
+    
+    # Paste %
+    x[,idx_num] <- apply(X = x[,idx_num], MARGIN = 2, FUN = paste0, "\\%")
+    
+  } else {
+    
+    if (is.numeric(x)) {
+      
+      # Multiply by 100
+      x <- multiply(x = x, c = 100)
+      
+      # Round
+      x <- round.to.exact.digit(x = x, digits = digits)
+      
+      # Paste
+      x <- paste0(x, "\\%")
+      
+    }
+    
+  }
+  
+  return(x)
+  
+}
+
+
+# Get extremus stats
+getExtrema <- function(x, extrema = "max", by = NULL){
+  
+  # Get numerical col idx
+  idx.num <- sapply(X = x, FUN = is.numeric)
+  
+  # Subset
+  x <- x[, idx.num]
+  
+  if (is.null(by)) {
+    stats <- do.call(what = extrema, args = x)
+  } else if(by == "col"){
+    stats <- apply(X = x, MARGIN = 2, FUN = get(extrema))
+  } else if(by == "row"){
+    stats <- apply(X = x, MARGIN = 1, FUN = get(extrema))
+  } else {
+    stop("Please specify correct `by`")
+  }
+  
+  return(stats)
+}
+
 
 
 ###############################################################################
-#################### ML FUNCTIONS
+#################### STATISTICAL FUNCTIONS
 ###############################################################################
+# Get iid standard erros from design matrix and residuals
 get.iid.se <- function(X, eps){
   
   # Find n and p
@@ -61,7 +152,7 @@ get.iid.se <- function(X, eps){
   return(se_idd)
 }
 
-
+# Get beta coefficients from linear regression
 get.beta <- function(Y, X, constant = FALSE){
   
   if (constant) {
@@ -77,7 +168,57 @@ get.beta <- function(Y, X, constant = FALSE){
 }
 
 
+# Function to compute expanding means
+expanding.mean <- function(x, na.rm = TRUE){
+  
+  # Copy matrix
+  x.ave <- x
+  
+  if (ncol(x) > 1) {
+    # Compute expanding row mean  
+    for (j in 2:ncol(x)) {
+      x.ave[, j] <- rowMeans(x[, 1:j], na.rm)
+    }
+    
+  }
+  
+  return(x.ave)
+}
 
+
+# Add CI
+add.ci <- function(x, se, alpha = 0.05){
+  
+  # Compute bounds
+  lower <- x - qnorm(p = 1-alpha/2) * se
+  upper <- x + qnorm(p = 1-alpha/2) * se
+  
+  # Return obj
+  retx <- data.frame("ci.lower" = lower, "ci.upper" = upper)
+  
+  # Return
+  return(retx)
+  
+}
+
+
+# Return quantile of empirical CDF
+empirical_cdf <- function(x, value, numerical.output=TRUE) {
+  
+  if (numerical.output) {
+    # Return numerical cdf
+    cdf <- ecdf(x)(value)
+    
+  } else {
+    # Return CDF as character
+    cdf <- paste(100*round(ecdf(x)(value), 2), "%", sep = "")
+  }
+  
+  return(cdf)
+}
+
+
+# Various machine learning methods in standardized syntax. Allow for cross-validation as well.
 MLmodels <- function(Y, X, newdata = NULL, model = "randomforests", params = NULL, return.model = FALSE,
                      cv = FALSE, parallel = TRUE, ncorespct = 0.8){
   
@@ -456,59 +597,6 @@ MLmodels <- function(Y, X, newdata = NULL, model = "randomforests", params = NUL
 } # END FUNCTION
 
 
-###############################################################################
-#################### COMPUTATION
-###############################################################################
-
-# Function to compute expanding means
-expanding.mean <- function(x, na.rm = TRUE){
-  
-  # Copy matrix
-  x.ave <- x
-  
-  if (ncol(x) > 1) {
-    # Compute expanding row mean  
-    for (j in 2:ncol(x)) {
-      x.ave[, j] <- rowMeans(x[, 1:j], na.rm)
-    }
-    
-  }
-  
-  return(x.ave)
-}
-
-
-# Add CI
-add.ci <- function(x, se, alpha = 0.05){
-  
-  # Compute bounds
-  lower <- x - qnorm(p = 1-alpha/2) * se
-  upper <- x + qnorm(p = 1-alpha/2) * se
-  
-  # Return obj
-  retx <- data.frame("ci.lower" = lower, "ci.upper" = upper)
-  
-  # Return
-  return(retx)
-  
-}
-
-
-# Return quantile of empirical CDF
-empirical_cdf <- function(x, value, numerical.output=TRUE) {
-  
-  if (numerical.output) {
-    # Return numerical cdf
-    cdf <- ecdf(x)(value)
-    
-  } else {
-    # Return CDF as character
-    cdf <- paste(100*round(ecdf(x)(value), 2), "%", sep = "")
-  }
-  
-  return(cdf)
-}
-
 
 # Bias-variance decomputation of parameter theta
 bias.variance.decomposition <- function(theta.hat, theta0 = 0, tol = 0.0001){
@@ -621,9 +709,6 @@ mse.decomposition <- function(Y, Y.hat, tol = 0.0001, by.group = NULL){
   return(results)
   
 }
-
-# Function to raise element to powers
-raise.to.power <- function(x,p){`^`(x,p)}
 
 # Function to compute the 0-1 loss
 get.zero.loss.group <- function(Y.group=NULL, Y.hat, Y=NULL, num.groups=3, by.group = NULL){
@@ -766,9 +851,8 @@ fitting.degree <- function(Y.observed, Y.true, Y.hat, by.group = NULL){
 
 
 
-
-
-
+# Function to raise element to powers
+raise.to.power <- function(x,p){`^`(x,p)}
 
 # Evaluate performance
 evaluate_performance <- function(observed, predicted){
@@ -787,99 +871,140 @@ evaluate_performance <- function(observed, predicted){
   
 }
 
-
-# Capitalize first letter and leave the rest
-firstup <- function(x) {
-  substr(x, 1, 1) <- toupper(substr(x, 1, 1))
-  return(x)
-}
-
-# Round and format to exact digits
-round.to.exact.digit <- function(x, digits){
-  
-  x <- format(round(x, digits = digits), nsmall = digits)
-  
-  return(x)
-  
-}
-
-
-# Add % to elements
-to.percent <- function(x, digits = 2){
-  
-  # Test if matrix or data.frame
-  isMulti <- is.matrix(x) | is.data.frame(x)
-  
-  if (isMulti) {
-    
-    # Find index
-    idx_num <- apply(X = as.matrix(x), MARGIN = 2, FUN = is.numeric)
-    
-    ## Change all indices
-    # Multiply by 100
-    x[,idx_num] <- multiply(x = x[,idx_num], c = 100)
-    
-    # Round
-    x[,idx_num] <- round.to.exact.digit(x = x[,idx_num], digits = digits)
-    
-    # Paste %
-    x[,idx_num] <- apply(X = x[,idx_num], MARGIN = 2, FUN = paste0, "\\%")
-    
-  } else {
-    
-    if (is.numeric(x)) {
-      
-      # Multiply by 100
-      x <- multiply(x = x, c = 100)
-      
-      # Round
-      x <- round.to.exact.digit(x = x, digits = digits)
-      
-      # Paste
-      x <- paste0(x, "\\%")
-      
-    }
-    
-  }
-  
-  return(x)
-  
-}
-
-
-# Get extremus stats
-getExtrema <- function(x, extrema = "max", by = NULL){
-  
-  # Get numerical col idx
-  idx.num <- sapply(X = x, FUN = is.numeric)
-  
-  # Subset
-  x <- x[, idx.num]
-  
-  if (is.null(by)) {
-    stats <- do.call(what = extrema, args = x)
-  } else if(by == "col"){
-    stats <- apply(X = x, MARGIN = 2, FUN = get(extrema))
-  } else if(by == "row"){
-    stats <- apply(X = x, MARGIN = 1, FUN = get(extrema))
-  } else {
-    stop("Please specify correct `by`")
-  }
-  
-  return(stats)
-}
-
-
-
-
-
-
-
-
-
-
 #  Obtain density
 get.density <- function(x, na.rm = TRUE){return(x = density(x, na.rm = na.rm)$y)}
+
+
+get.yx.inputs <- function(x, outlier.pct = 0.025, by = NULL){
+  
+  # Get quantiles
+  qnts <- apply(X = x, MARGIN = 2, FUN = quantile, probs = c(outlier.pct, 1-outlier.pct), na.rm = TRUE)
+  
+  # Limit x-axis
+  limit.x.abs <- max(abs(qnts))
+  x.limits <- c(-limit.x.abs,limit.x.abs)
+  
+  ## Get density to set limit on y-axis
+  # Find outliers
+  idx.outlier <- abs(x) > limit.x.abs
+  
+  # Set outliers to NA
+  x[idx.outlier] <- NA
+  
+  # Get densities and maximum density (used to scale density plots)
+  densities <- purrr::transpose(apply(X = x, MARGIN = 2, FUN = density, na.rm = TRUE))
+  
+  # Get maximum density overall
+  df.max.density <- data.frame("group" = "overall",
+                               "density" = max(unlist(densities$y)))  
+  
+  
+  # By group
+  if (!is.null(by)) {
+    
+    # Split estimates by ID    
+    data.by <- split(x = x, f = by)
+    
+    # Clean; Omit columns with less than `5` observations
+    data.by.clean <- lapply(X = data.by, FUN = function(x){x[, colSums(!is.na(x)) > 5]})
+    
+    # Obtain densities by split
+    density.by <- lapply(X = data.by.clean, FUN = function(x){return(apply(X = x, MARGIN = 2, FUN = get.density))})
+    
+    # Obtain maximum densities
+    max.density.by <- lapply(X = lapply(X = density.by, FUN = colMax, as.df=TRUE), FUN = as.data.frame)
+    
+    # Bind
+    max.density.by <- data.table::rbindlist(max.density.by, fill = TRUE,  use.names=TRUE)
+    
+    # Give names
+    # colnames(max.density.by) <- sort(unique(by))
+    
+    # Add group
+    df.max.density.by <- cbind.data.frame("group" = names(density.by), max.density.by)
+    
+  } else {
+    
+    df.max.density.by <- NULL
+  }
+  
+  return(list("xlim" = x.limits,
+              "density" = df.max.density,
+              "densityby" = df.max.density.by))
+  
+  
+}
+###############################################################################
+#################### COLORS
+###############################################################################
+
+# Define color palette
+colors_palette <- c(
+  # COLOR-BLIND FRIENDLY: scales::show_col(rcartocolor::carto_pal(12, "Safe"))
+  "#88CCEE", "#CC6677", "#DDCC77", "#117733", "#332288", "#AA4499",
+  "#44AA99", "#999933", "#882255", "#661100", "#6699CC", "#888888",
+  
+  # OLD MASTER
+  "#3C5488FF","#E64B35FF", "#00A087FF", "#00A1D5FF", "#FFCD00FF",
+  "#8491B4FF", "#E377C2FF", "#FF7F0EFF", "#9467BDFF", "#F39B7FFF",
+  "#79AF97FF", "#B24745FF", "#374E55FF", "#00FFFFFF", "#80796BFF",
+  "#91D1C2FF", "#BCBD22FF", "#00FF00FF","#2CA02CFF", "#FFFF00FF")
+
+
+# palette_OkabeIto <- c("#E69F00", "#56B4E9", "#009E73", "#F0E442", 
+#                       "#0072B2", "#D55E00", "#CC79A7", "#999999")
+# scales::show_col(palette_OkabeIto)
+# Show colors
+# scales::show_col(colors_palette)
+# scales::show_col(pal_npg()(20))
+# scales::show_col(pal_aaas()(20))
+# scales::show_col(pal_nejm()(20))
+# scales::show_col(pal_lancet()(20))
+# scales::show_col(pal_jama()(20))
+# scales::show_col(pal_ucscgb()(20))
+# scales::show_col(pal_d3()(20))
+# scales::show_col(pal_locuszoom()(20))
+# scales::show_col(pal_uchicago()(20))
+# scales::show_col(pal_startrek()(20))
+
+################################################################################
+#################### GGPLOT
+################################################################################
+
+## GG settings
+size_geom_point <- 3
+size_geom_line <- 2
+size_geom_line_helper <- 1.5
+alpha_ribbon <- 0.2
+size_of_legend_key <- 8
+num_axis_breaks_y <- 5
+num_axis_breaks_x <- 5  
+
+# Edit text size
+base_size_text <- 32
+
+# Size of plots
+px <- 500
+
+# Height and width
+height_opt <- 10
+width_opt <- 10
+
+# Saving format
+save_format <- cairo_ps # Use "eps" (or cairo_ps for transparent figures)
+
+# Manual settings
+theme_manual_settings <- "theme(text=element_text(size=base_size_text, family = 'Times'),
+                               legend.position = 'top',
+                               legend.spacing.x = unit(0.25, 'cm'),
+                               legend.text = element_text(margin = margin(r = 40, unit = 'pt')),
+                               plot.margin = unit(c(1.5,1.5,1.5,1.5), 'cm'))"
+
+
+
+################################################################################
+#################### OLD FUNCTIONS
+################################################################################
 
 #' Replace all values with NA where a certain condition is met
 #'
@@ -1037,137 +1162,11 @@ na_set <- function(vec, condition) {
 }
 
 
-# Obtain legend
-get_legend<-function(myggplot){
-  tmp <- ggplot_gtable(ggplot_build(myggplot))
-  leg <- which(sapply(tmp$grobs, function(x) x$name) == "guide-box")
-  legend <- tmp$grobs[[leg]]
-  return(legend)
-}
-
-get.yx.inputs <- function(x, outlier.pct = 0.025, by = NULL){
-  
-  # Get quantiles
-  qnts <- apply(X = x, MARGIN = 2, FUN = quantile, probs = c(outlier.pct, 1-outlier.pct), na.rm = TRUE)
-  
-  # Limit x-axis
-  limit.x.abs <- max(abs(qnts))
-  x.limits <- c(-limit.x.abs,limit.x.abs)
-  
-  ## Get density to set limit on y-axis
-  # Find outliers
-  idx.outlier <- abs(x) > limit.x.abs
-  
-  # Set outliers to NA
-  x[idx.outlier] <- NA
-  
-  # Get densities and maximum density (used to scale density plots)
-  densities <- purrr::transpose(apply(X = x, MARGIN = 2, FUN = density, na.rm = TRUE))
-  
-  # Get maximum density overall
-  df.max.density <- data.frame("group" = "overall",
-                               "density" = max(unlist(densities$y)))  
-  
-  
-  # By group
-  if (!is.null(by)) {
-    
-    # Split estimates by ID    
-    data.by <- split(x = x, f = by)
-    
-    # Clean; Omit columns with less than `5` observations
-    data.by.clean <- lapply(X = data.by, FUN = function(x){x[, colSums(!is.na(x)) > 5]})
-    
-    # Obtain densities by split
-    density.by <- lapply(X = data.by.clean, FUN = function(x){return(apply(X = x, MARGIN = 2, FUN = get.density))})
-    
-    # Obtain maximum densities
-    max.density.by <- lapply(X = lapply(X = density.by, FUN = colMax, as.df=TRUE), FUN = as.data.frame)
-    
-    # Bind
-    max.density.by <- data.table::rbindlist(max.density.by, fill = TRUE,  use.names=TRUE)
-    
-    # Give names
-    # colnames(max.density.by) <- sort(unique(by))
-    
-    # Add group
-    df.max.density.by <- cbind.data.frame("group" = names(density.by), max.density.by)
-    
-  } else {
-    
-    df.max.density.by <- NULL
-  }
-  
-  return(list("xlim" = x.limits,
-              "density" = df.max.density,
-              "densityby" = df.max.density.by))
-  
-  
-}
-###############################################################################
-#################### COLORS
-###############################################################################
-
-# Define color palette
-colors_palette <- c(
-  # COLOR-BLIND FRIENDLY: scales::show_col(rcartocolor::carto_pal(12, "Safe"))
-  "#88CCEE", "#CC6677", "#DDCC77", "#117733", "#332288", "#AA4499",
-  "#44AA99", "#999933", "#882255", "#661100", "#6699CC", "#888888",
-  
-  # OLD MASTER
-  "#3C5488FF","#E64B35FF", "#00A087FF", "#00A1D5FF", "#FFCD00FF",
-  "#8491B4FF", "#E377C2FF", "#FF7F0EFF", "#9467BDFF", "#F39B7FFF",
-  "#79AF97FF", "#B24745FF", "#374E55FF", "#00FFFFFF", "#80796BFF",
-  "#91D1C2FF", "#BCBD22FF", "#00FF00FF","#2CA02CFF", "#FFFF00FF")
-
-
-# palette_OkabeIto <- c("#E69F00", "#56B4E9", "#009E73", "#F0E442", 
-#                       "#0072B2", "#D55E00", "#CC79A7", "#999999")
-# scales::show_col(palette_OkabeIto)
-# Show colors
-# scales::show_col(colors_palette)
-# scales::show_col(pal_npg()(20))
-# scales::show_col(pal_aaas()(20))
-# scales::show_col(pal_nejm()(20))
-# scales::show_col(pal_lancet()(20))
-# scales::show_col(pal_jama()(20))
-# scales::show_col(pal_ucscgb()(20))
-# scales::show_col(pal_d3()(20))
-# scales::show_col(pal_locuszoom()(20))
-# scales::show_col(pal_uchicago()(20))
-# scales::show_col(pal_startrek()(20))
-
-###############################################################################
-#################### GGPLOT
-###############################################################################
-
-## GG settings
-size_geom_point <- 3
-size_geom_line <- 2
-size_geom_line_helper <- 1.5
-alpha_ribbon <- 0.2
-size_of_legend_key <- 8
-num_axis_breaks_y <- 5
-num_axis_breaks_x <- 5  
-
-# Edit text size
-base_size_text <- 32
-
-# Size of plots
-px <- 500
-
-# Height and width
-height_opt <- 10
-width_opt <- 10
-
-# Saving format
-save_format <- cairo_ps # Use "eps" (or cairo_ps for transparent figures)
-
-# Manual settings
-theme_manual_settings <- "theme(text=element_text(size=base_size_text, family = 'Times'),
-                               legend.position = 'top',
-                               legend.spacing.x = unit(0.25, 'cm'),
-                               legend.text = element_text(margin = margin(r = 40, unit = 'pt')),
-                               plot.margin = unit(c(1.5,1.5,1.5,1.5), 'cm'))"
-
+# # Obtain legend
+# get_legend<-function(myggplot){
+#   tmp <- ggplot_gtable(ggplot_build(myggplot))
+#   leg <- which(sapply(tmp$grobs, function(x) x$name) == "guide-box")
+#   legend <- tmp$grobs[[leg]]
+#   return(legend)
+# }
 
