@@ -855,17 +855,28 @@ fitting.degree <- function(Y.observed, Y.true, Y.hat, by.group = NULL){
 raise.to.power <- function(x,p){`^`(x,p)}
 
 # Evaluate performance
-evaluate_performance <- function(observed, predicted){
+evaluate_performance <- function(observed, predicted, training.mean = NULL){
   
   # Compute squared error
   squared_error <- (observed-predicted)^2
   
-  # MSE
+  # MSE & RMSE
   mse <- mean(squared_error, na.rm = TRUE)
   rmse <- sqrt(mse)
   
+  # Out-of-sample R2
+  if (is.null(training.mean)) {
+    oosr2 <- NULL
+  } else {
+    SSR = sum(squared_error)
+    SST = sum((observed - training.mean)^2)
+    oosr2 = 1 - SSR / SST
+  }
+  
+  
   results <- list("MSE" = mse,
-                  "RMSE" = rmse)
+                  "RMSE" = rmse,
+                  "OoS-R2" = oosr2)
   
   return(results)
   

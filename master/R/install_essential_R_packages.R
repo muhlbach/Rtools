@@ -15,7 +15,7 @@ earth CORElearn mboost grf ranger hdm anytime bizdays bsts doParallel ggpubr ggt
 Rfast AER aod corrplot xgboost RQuantLib pls 
 here Cairo tidyverse tables wCorr Gmisc pacman 
 readr dplyr lubridate gridExtra hablar purrr data.table rstudioapi profvis matrixStats 
-DescTools kableExtra latex2exp pbmcapply doMC")
+DescTools kableExtra latex2exp pbmcapply doMC h2o automl")
 
 # Currently these packages cannot be installed:
 # None 
