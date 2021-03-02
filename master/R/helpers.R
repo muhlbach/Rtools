@@ -710,6 +710,7 @@ mse.decomposition <- function(Y, Y.hat, tol = 0.0001, by.group = NULL){
   
 }
 
+
 # Function to compute the 0-1 loss
 get.zero.loss.group <- function(Y.group=NULL, Y.hat, Y=NULL, num.groups=3, by.group = NULL){
   
@@ -719,7 +720,7 @@ get.zero.loss.group <- function(Y.group=NULL, Y.hat, Y=NULL, num.groups=3, by.gr
   if (!is.null(Y.group)) {
     # Everything is great, continue
   } else if (!is.null(Y)) {
-    Y.group <- as.numeric(Hmisc::cut2(Y, g=num.groups)) 
+    Y.group <- as.numeric(Hmisc::cut2(rank(Y, ties.method = "average", na.last = "keep"), g = num.groups))
   } else {
     stop("Please provide either 'Y.group' or 'Y'")
   }
@@ -730,7 +731,7 @@ get.zero.loss.group <- function(Y.group=NULL, Y.hat, Y=NULL, num.groups=3, by.gr
   Y.hat <- Y.hat[!idx.missing]
   
   # Compute group based on predictions
-  Y.hat.group <- as.numeric(Hmisc::cut2(Y.hat, g=num.groups)) 
+  Y.hat.group <- as.numeric(Hmisc::cut2(rank(Y.hat, ties.method = "average", na.last = "keep"), g = num.groups))
   # NB! When we have missing, the ordering will change even for W1 where we do not have missing
   
   # Compute 0-1 loss
@@ -848,6 +849,26 @@ fitting.degree <- function(Y.observed, Y.true, Y.hat, by.group = NULL){
   
 }
 
+# Check if observations are misclassified
+is_misclassified <- function(Y.hat, Y.group=NULL, Y=NULL, num.groups=3){
+  
+  if (!is.null(Y.group)) {
+    # Everything is great, continue
+  } else if (!is.null(Y)) {
+    Y.group <- as.numeric(Hmisc::cut2(rank(Y, ties.method = "average", na.last = "keep"), g = num.groups))
+  } else {
+    stop("Please provide either 'Y.group' or 'Y'")
+  }
+  
+  # Compute group based on predictions
+  Y.hat.group <- as.numeric(Hmisc::cut2(rank(Y.hat, ties.method = "average", na.last = "keep"), g = num.groups))
+  
+  # Check if misclassified
+  is.misclassified <- as.numeric(Y.group != Y.hat.group)
+  
+  return(is.misclassified)
+  
+}
 
 
 
