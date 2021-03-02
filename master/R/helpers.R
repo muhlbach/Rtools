@@ -127,6 +127,32 @@ getExtrema <- function(x, extrema = "max", by = NULL){
 }
 
 
+# Aggregate by mulltiple columsn and give appropriate names
+aggregate_by_multiple <- function(x, by, FUN) {
+  
+  # Compute outcomes by misclassiffied (TRUE/FALSE) and predicted outcome group (1,...,num_group)
+  stats_temp <- aggregate(x = x,
+                          by = by,
+                          FUN = FUN,
+                          na.rm = TRUE) 
+  
+  # Transform from long to wide
+  stats_temp <- setDF(data.table::dcast(data = setDT(stats_temp),
+                                        formula = paste0("1 ~ ", paste(names(by), collapse = " + ")),
+                                        value.var = "x"))
+  
+  # Remove empty (as we have transformed into only one row)
+  stats_temp$. <- NULL
+  
+  # Give appropriate names
+  names(stats_temp) <- do.call(c,lapply(strsplit(x = names(stats_temp), split = "_"), FUN = function(x){paste0(paste0(names(by), x), collapse = "_")}))
+  
+  # Return
+  return(stats_temp)
+  
+}
+
+
 
 ###############################################################################
 #################### STATISTICAL FUNCTIONS
@@ -810,23 +836,15 @@ fitting.degree <- function(Y.observed, Y.true, Y.hat, by.group = NULL){
       # Get indices
       idx <- by.group == g
       
-      # # Compute absolute loss (true and noise)
-      # eps.true_g <- abs(Y.true[idx] - Y.hat[idx])
-      # eps.observed_g <- abs(Y.observed[idx] - Y.hat[idx])
-      
       ## OVERFITTING
 
       # Indicate overfitting
-      # overfiting.to.observed_g <- mean(eps.observed_g < eps.true_g, na.rm = TRUE)
       overfiting.to.observed_g <- mean(eps.observed[idx] < eps.true[idx], na.rm = TRUE)
       
-      ## UNDERFITTING
-      dist.to.mean_g <- abs(Y.hat[idx] - mean(Y.observed[idx], na.rm = TRUE))
-      
+      ## UNDERFITTING (keep the same mean)
       # Indicate underfitting
-      underfiting.to.signal_g <- mean(dist.to.mean_g[idx] < eps.true[idx], na.rm = TRUE)
+      underfiting.to.signal_g <- mean(dist.to.mean[idx] < eps.true[idx], na.rm = TRUE)
       
-
       # Store results
       results_g <- list("overfitting" = overfiting.to.observed_g,
                         "underfitting" = underfiting.to.signal_g)
