@@ -1019,6 +1019,22 @@ colors_palette <- c(
 #################### GGPLOT
 ################################################################################
 
+#extract legend
+#https://github.com/hadley/ggplot2/wiki/Share-a-legend-between-two-ggplot2-graphs
+extract.legend.ggplot <- function(gg){
+  tmp <- ggplot_gtable(ggplot_build(gg))
+  leg <- which(sapply(tmp$grobs, function(x) x$name) == "guide-box")
+  legend <- tmp$grobs[[leg]]
+  return(legend)
+  }
+
+
+
+
+################################################################################
+#################### GGPLOT SETTINGS
+################################################################################
+
 ## GG settings
 size_geom_point <- 3
 size_geom_line <- 2
