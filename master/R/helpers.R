@@ -950,11 +950,14 @@ get.yx.inputs <- function(x, outlier.pct = 0.025, by = NULL){
   # By group
   if (!is.null(by)) {
     
+    # Omit columns with less than `min_obs` observations
+    min_obs <- 5
+    
     # Split estimates by ID    
     data.by <- split(x = x, f = by)
     
     # Clean; Omit columns with less than `5` observations
-    data.by.clean <- lapply(X = data.by, FUN = function(x){x[, colSums(!is.na(x)) > 5]})
+    data.by.clean <- lapply(X = data.by, FUN = function(x){x[, colSums(!is.na(x)) > min_obs]})
     
     # Obtain densities by split
     density.by <- lapply(X = data.by.clean, FUN = function(x){return(apply(X = x, MARGIN = 2, FUN = get.density))})
@@ -1002,6 +1005,7 @@ colors_palette <- c(
 # palette_OkabeIto <- c("#E69F00", "#56B4E9", "#009E73", "#F0E442", 
 #                       "#0072B2", "#D55E00", "#CC79A7", "#999999")
 # scales::show_col(palette_OkabeIto)
+# scales::show_col(colors_palette)
 # Show colors
 # scales::show_col(colors_palette)
 # scales::show_col(pal_npg()(20))
